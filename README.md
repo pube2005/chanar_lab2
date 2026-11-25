@@ -13,14 +13,20 @@ k6 ашиглан системийн гүйцэтгэлийг өөр өөр ач
 ## 2. Туршилтын орчин
 
 - Windows 11 / WSL2 Ubuntu
-- k6 v2.4.0
+- Grafana k6
 - JavaScript
 - Python HTTP Server
 - Git, GitHub
 
-k6 хувилбарын мэдээлэл: [k6-version.txt](results/k6-version.txt)
+### k6 version
 
-Туршилтын хаягууд:
+```text
+k6 v2.4.0 (commit/dd9395906d, go1.26.11, linux/amd64)
+```
+
+Хувилбарын мэдээлэл: [k6-version.txt](results/k6-version.txt)
+
+Туршилтын зөвшөөрөгдсөн хаягууд:
 
 - https://test.k6.io
 - http://127.0.0.1:8000
@@ -35,7 +41,7 @@ k6 хувилбарын мэдээлэл: [k6-version.txt](results/k6-version.tx
 k6 run script.js
 ```
 
-Локал сервер:
+Локал серверийг тусдаа терминал дээр ажиллуулах:
 
 ```bash
 python3 server.py
@@ -61,6 +67,12 @@ Stages туршилт:
 k6 run stages-test.js
 ```
 
+Threshold PASS туршилт:
+
+```bash
+k6 run threshold-test.js
+```
+
 ## 4. Baseline үр дүн
 
 | Үзүүлэлт | test.k6.io | Local server |
@@ -78,34 +90,41 @@ k6 run stages-test.js
 
 ## 5. Ачааллын туршилтын үр дүн
 
-| VU | Duration | p90 | p95 | Req/s | Error rate |
-|---:|---|---:|---:|---:|---:|
-| 5 | 1m | 103.05ms | 103.38ms | 4.52 | 0.00% |
-| 30 | 1m | 800.74ms | 1s | 9.08 | 0.17% |
-| 100 | 1m | 58.98s | 58.99s | 5.35 | 23.21% |
+| VU | Duration | Average | p90 | p95 | Req/s | Error rate |
+|---:|---|---:|---:|---:|---:|---:|
+| 5 | 1m | 105.97ms | 103.05ms | 103.38ms | 4.52 | 0.00% |
+| 30 | 1m | 706.39ms | 800.74ms | 1s | 9.08 | 0.17% |
+| 100 | 1m | 10.26s | 58.98s | 58.99s | 5.35 | 23.21% |
+
+30 VU ачааллаас эхлэн хэрэглэгчийн хариу хүлээх хугацаа мэдэгдэхүйц өссөн. 100 VU үед throughput буурч, latency болон error rate огцом нэмэгдсэн.
 
 ## 6. Stages туршилт
 
 | Stage | Duration | Target VU |
 |---|---|---:|
-| 1 | 30s | 5 |
-| 2 | 30s | 30 |
-| 3 | 30s | 100 |
-| 4 | 30s | 0 |
+| Халаалт | 30s | 5 |
+| Өсөлт | 1m | 30 |
+| Оргил | 30s | 100 |
+| Буулт | 30s | 0 |
 
-Нийт үндсэн хугацаа: 2 минут.
+Нийт үндсэн хугацаа: 150 секунд.
+
+Graceful stop оролцсон бодит хугацаа: 162.6 секунд.
 
 | Үзүүлэлт | Үр дүн |
 |---|---:|
-| Average | 969.95ms |
-| p90 | 796.97ms |
-| p95 | 1.56s |
-| Throughput | 5.83 req/s |
-| Error rate | 9.98% |
-| Нийт хүсэлт | 761 |
-| Амжилттай | 685 |
-| Амжилтгүй | 76 |
-| Interrupted iterations | 2 |
+| Average | 893.65ms |
+| p90 | 810.81ms |
+| p95 | 1.11s |
+| Throughput | 6.758121 req/s |
+| Error rate | 6.36% |
+| Нийт хүсэлт | 1099 |
+| Амжилттай | 1029 |
+| Амжилтгүй | 70 |
+| Completed iterations | 1098 |
+| Interrupted iterations | 3 |
+
+Stages туршилт нь нэгтгэсэн summary гаргадаг тул 5/30/100 VU түвшний харьцуулалтыг тусдаа ажиллуулсан туршилтуудаас авсан.
 
 ## 7. SLO болон Threshold
 
@@ -124,24 +143,51 @@ thresholds: {
 }
 ```
 
+### 7.1. Автомат Threshold PASS
+
+5 VU, 30 секундын туршилт.
+
+| Үзүүлэлт | Үр дүн |
+|---|---:|
+| Average | 109.39ms |
+| p90 | 103.28ms |
+| p95 | 103.91ms |
+| Throughput | 4.418559 req/s |
+| Error rate | 0.00% |
+| HTTP requests | 137 |
+
 | Metric | Threshold | Actual | Result |
 |---|---|---|---|
-| p95 latency | <156ms | 1560ms | FAIL |
-| Error rate | <1% | 9.98% | FAIL |
+| p95 latency | <156ms | 103.91ms | PASS |
+| Error rate | <1% | 0.00% | PASS |
 
-Stages туршилтын автомат үнэлгээ: **FAIL**
+Автомат үнэлгээ: **PASS**
+
+### 7.2. Автомат Threshold FAIL
+
+150 секундын Stages туршилт.
+
+| Metric | Threshold | Actual | Result |
+|---|---|---|---|
+| p95 latency | <156ms | 1.11s | FAIL |
+| Error rate | <1% | 6.36% | FAIL |
+
+Автомат үнэлгээ: **FAIL**
 
 Exit code: 99
 
-Бусад туршилтыг ижил SLO-той гараар харьцуулсан үнэлгээ:
+Ижил SLO босго ашиглахад бага ачааллын үед PASS, өндөр ачааллын үед FAIL гарсан нь Threshold буюу автомат quality gate-ийн ажиллагааг харуулсан.
 
-| Test | Latency | Error rate | Overall |
-|---|---|---|---|
-| Local baseline | PASS | PASS | PASS |
-| 5 VU | PASS | PASS | PASS |
-| 30 VU | FAIL | PASS | FAIL |
-| 100 VU | FAIL | FAIL | FAIL |
-| Stages | FAIL | FAIL | FAIL |
+### 7.3. SLO харьцуулалт
+
+| Test | Latency | Error rate | Overall | Үнэлгээ |
+|---|---|---|---|---|
+| Local baseline | PASS | PASS | PASS | Manual |
+| 5 VU | PASS | PASS | PASS | Manual |
+| 30 VU | FAIL | PASS | FAIL | Manual |
+| 100 VU | FAIL | FAIL | FAIL | Manual |
+| Threshold test | PASS | PASS | PASS | Automatic |
+| Stages | FAIL | FAIL | FAIL | Automatic |
 
 ## 8. Нотлох баримтууд
 
@@ -152,15 +198,20 @@ Exit code: 99
 | 5 VU | [Log](results/run-05vu.txt) | [Image](evidence/run-05vu.png) |
 | 30 VU | [Log](results/run-30vu.txt) | [Image](evidence/run-30vu.png) |
 | 100 VU | [Log](results/run-100vu.txt) | [Image](evidence/run-100vu.png) |
-| Stages | [Log](results/run-stages.txt) | [Image](evidence/run-stages.png) |
+| Stages / FAIL | [Log](results/run-stages.txt) | [Image](evidence/run-stages.png) |
+| Threshold PASS | [Log](results/run-threshold-pass.txt) | [Image](evidence/run-threshold-pass.png) |
 
-### Threshold үр дүн
+### Threshold PASS
 
-![Stages and Threshold results](evidence/run-stages.png)
+![Threshold PASS](evidence/run-threshold-pass.png)
+
+### Threshold FAIL
+
+![Threshold FAIL](evidence/run-stages.png)
 
 ## 9. Дүгнэлт
 
-Энэхүү лабораторийн ажлаар k6 ашиглан системийн гүйцэтгэлийн туршилт хийсэн. Локал baseline туршилтаар p95 хугацаа 103.95ms, алдааны хувь 0% гарсан. 5 VU ачаалалд сервер тогтвортой ажиллаж, бүх хүсэлт амжилттай болсон. 30 VU ачаалалд throughput 9.08 req/s болж өссөн боловч p95 хугацаа 1 секунд хүрсэн. 100 VU ачаалалд p95 хугацаа 58.99 секунд, алдааны хувь 23.21% болж серверийн гүйцэтгэл мэдэгдэхүйц муудсан. Stages туршилтаар 761 хүсэлт илгээж, 76 хүсэлт амжилтгүй болсон. Baseline-ийн p95 утгад үндэслэн SLO босгыг 156ms гэж тодорхойлсон. Stages туршилтын p95 болон error rate үзүүлэлтүүд тогтоосон Threshold шаардлагыг хангаагүй. Нэг урсгалтай серверийн бүтэц болон зориудын саатал нь өндөр ачааллын үед гүйцэтгэл хязгаарлагдах боломжит үндсэн шалтгаан болсон. Цаашид олон урсгалтай сервер ашиглан ижил нөхцөлд дахин туршиж, гүйцэтгэлийн өөрчлөлтийг харьцуулах боломжтой.
+Энэхүү лабораторийн ажлаар k6 ашиглан системийн гүйцэтгэлийг бодитоор хэмжсэн. Локал baseline туршилтаар p95 хугацаа 103.95ms, алдааны хувь 0% гарсан. 5 VU ачаалалд сервер тогтвортой ажиллаж, бүх хүсэлт амжилттай болсон. 30 VU ачаалалд throughput 9.08 req/s болж өссөн боловч p95 хугацаа 1 секунд хүрсэн. 100 VU ачаалалд p95 хугацаа 58.99 секунд, алдааны хувь 23.21% болж серверийн гүйцэтгэл мэдэгдэхүйц муудсан. Эдгээр үр дүн нь лекцээр үзсэн latency, throughput болон error rate-ийн хамаарлыг харуулсан. Stages туршилтаар 1099 хүсэлтээс 70 хүсэлт амжилтгүй болж, алдааны хувь 6.36% гарсан. Локал baseline-д үндэслэн p95 SLO босгыг 156ms, error rate босгыг 1%-иас бага байхаар тодорхойлсон. Автомат Threshold туршилтаар 5 VU үед PASS, Stages туршилтаар FAIL гарсан нь SLO болон quality gate-ийн ажиллагааг баталсан. Нэг урсгалтай серверийн бүтэц болон зориудын саатал нь өндөр ачааллын үед гүйцэтгэл хязгаарлагдах боломжит үндсэн шалтгаан болсон.
 
 ## 10. AI ашиглалт
 
