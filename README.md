@@ -216,3 +216,43 @@ Exit code: 99
 ## 10. AI ашиглалт
 
 ChatGPT-ийг k6 тестийн код боловсруулах, командын заавар авах, хэмжилтийн үр дүнг тайлбарлах болон README баримтжуулалт бэлтгэхэд ашигласан. Туршилтуудыг өөрийн локал орчинд ажиллуулж, бодит үр дүн болон дэлгэцийн зургуудыг хадгалсан.
+
+## 11. Зориуд хатууруулсан Threshold туршилт
+
+Threshold-ийн автомат FAIL ажиллагааг баталгаажуулахын тулд
+үндсэн SLO-г өөрчлөхгүйгээр тусдаа туршилт үүсгэсэн.
+
+```bash
+k6 run threshold-fail-test.js
+```
+
+Туршилтын нөхцөл: 5 VU, 30 секунд.
+
+| Үзүүлэлт | Үр дүн |
+|---|---:|
+| Average | 109.33ms |
+| p90 | 102.86ms |
+| p95 | 104.77ms |
+| Throughput | 4.436604 req/s |
+| Error rate | 0.00% |
+| HTTP requests | 138 |
+
+| Metric | Threshold | Actual | Result |
+|---|---|---|---|
+| p95 latency | <50ms | 104.77ms | FAIL |
+| Error rate | <1% | 0.00% | PASS |
+
+Автомат үнэлгээ: **FAIL**
+
+Exit code: 99
+
+Локал серверийн 100ms саатлаас шалтгаалан зориуд
+хатууруулсан 50ms босгыг хангаагүй. Бүх HTTP хүсэлт
+амжилттай байсан ч latency threshold зөрчигдсөнөөр
+k6 тестийг FAIL гэж үнэлсэн. Энэ нь CI pipeline дахь
+автомат quality gate-ийн ажиллагааг харуулж байна.
+
+- [Бүтэн log](results/run-threshold-fail.txt)
+- [Туршилтын скрипт](threshold-fail-test.js)
+
+![Strict Threshold FAIL](evidence/run-threshold-fail.png)
